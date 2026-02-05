@@ -1,5 +1,12 @@
 #!/bin/env python3
 
+"""A simple and short program to print informations about unicode characters in
+a string.
+It can be used to decode emojis or other characters you don't have a font for.
+Or to distinguish confusable characters. Or to check whether some visual
+characters are in a combined form or not.
+"""
+
 import argparse
 import codecs
 import sys
@@ -78,6 +85,9 @@ MISSING_UNICODE_NAMES = {
 
 
 def print_string(args, string, print_header=True):
+    """Take a string as input and print the table of information about its
+    characters. One row per character."""
+
     if args.normalize is not None:
         string = unicodedata.normalize(args.normalize, string)
 
@@ -109,6 +119,9 @@ def print_string(args, string, print_header=True):
 
 
 def main():
+    """Main function. Parses the arguments, read stdin if needed and calls
+    print_string."""
+
     parser = argparse.ArgumentParser(description="Decode and print the description of each unicode character in a string")
     parser.add_argument("string", nargs="?",
                         help="String to decode. Defaults to reading stdin.")
