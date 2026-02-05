@@ -122,14 +122,16 @@ def main():
     """Main function. Parses the arguments, read stdin if needed and calls
     print_string."""
 
-    parser = argparse.ArgumentParser(description="Decode and print the description of each unicode character in a string")
+    parser = argparse.ArgumentParser(description="Decode and print the description "
+                                     "of each unicode character in a string")
     parser.add_argument("string", nargs="?",
                         help="String to decode. Defaults to reading stdin.")
     parser.add_argument("--encoding", "-e", metavar="encoding", default="UTF-8",
                         help="Encoding to use to decode the string (defaults to UTF-8).")
     parser.add_argument("--encoding-error", metavar="handling", default="surrogateescape",
                         choices=["strict", "ignore", "replace", "surrogateescape"],
-                        help="How to handle errors while unicode encoding and decoding (defaults to surrogateescape).")
+                        help="How to handle errors while unicode encoding and "
+                        "decoding (defaults to surrogateescape).")
     parser.add_argument("--strict", action="store_const", const="strict",
                         help="Alias for --encoding-error=strict.")
     parser.add_argument("--ignore", action="store_const", const="ignore",
