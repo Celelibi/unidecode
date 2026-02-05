@@ -1,0 +1,169 @@
+#!/bin/env python3
+
+import argparse
+import codecs
+import sys
+import unicodedata
+
+
+
+MISSING_UNICODE_NAMES = {
+    0x00000: "NULL",
+    0x00001: "START OF HEADING",
+    0x00002: "START OF TEXT",
+    0x00003: "END OF TEXT",
+    0x00004: "END OF TRANSMISSION",
+    0x00005: "ENQUIRY",
+    0x00006: "ACKNOWLEDGE",
+    0x00007: "ALERT",
+    0x00008: "BACKSPACE",
+    0x00009: "CHARACTER TABULATION",
+    0x0000a: "LINE FEED",
+    0x0000b: "LINE TABULATION",
+    0x0000c: "FORM FEED",
+    0x0000d: "CARRIAGE RETURN",
+    0x0000e: "SHIFT OUT",
+    0x0000f: "SHIFT IN",
+    0x00010: "DATA LINK ESCAPE",
+    0x00011: "DEVICE CONTROL ONE",
+    0x00012: "DEVICE CONTROL TWO",
+    0x00013: "DEVICE CONTROL THREE",
+    0x00014: "DEVICE CONTROL FOUR",
+    0x00015: "NEGATIVE ACKNOWLEDGE",
+    0x00016: "SYNCHRONOUS IDLE",
+    0x00017: "END OF TRANSMISSION BLOCK",
+    0x00018: "CANCEL",
+    0x00019: "END OF MEDIUM",
+    0x0001a: "SUBSTITUTE",
+    0x0001b: "ESCAPE",
+    0x0001c: "INFORMATION SEPARATOR FOUR",
+    0x0001d: "INFORMATION SEPARATOR THREE",
+    0x0001e: "INFORMATION SEPARATOR TWO",
+    0x0001f: "INFORMATION SEPARATOR ONE",
+    0x0007f: "DELETE",
+    0x00080: "PADDING CHARACTER",
+    0x00081: "HIGH OCTET PRESET",
+    0x00082: "BREAK PERMITTED HERE",
+    0x00083: "NO BREAK HERE",
+    0x00084: "INDEX",
+    0x00085: "NEXT LINE",
+    0x00086: "START OF SELECTED AREA",
+    0x00087: "END OF SELECTED AREA",
+    0x00088: "CHARACTER TABULATION SET",
+    0x00089: "CHARACTER TABULATION WITH JUSTIFICATION",
+    0x0008a: "LINE TABULATION SET",
+    0x0008b: "PARTIAL LINE FORWARD",
+    0x0008c: "PARTIAL LINE BACKWARD",
+    0x0008d: "REVERSE LINE FEED",
+    0x0008e: "SINGLE SHIFT TWO",
+    0x0008f: "SINGLE SHIFT THREE",
+    0x00090: "DEVICE CONTROL STRING",
+    0x00091: "PRIVATE USE ONE",
+    0x00092: "PRIVATE USE TWO",
+    0x00093: "SET TRANSMIT STATE",
+    0x00094: "CANCEL CHARACTER",
+    0x00095: "MESSAGE WAITING",
+    0x00096: "START OF GUARDED AREA",
+    0x00097: "END OF GUARDED AREA",
+    0x00098: "START OF STRING",
+    0x00099: "SINGLE GRAPHIC CHARACTER INTRODUCER",
+    0x0009a: "SINGLE CHARACTER INTRODUCER",
+    0x0009b: "CONTROL SEQUENCE INTRODUCER",
+    0x0009c: "STRING TERMINATOR",
+    0x0009d: "OPERATING SYSTEM COMMAND",
+    0x0009e: "PRIVACY MESSAGE",
+    0x0009f: "APPLICATION PROGRAM COMMAND",
+}
+
+
+
+def print_string(args, string, print_header=True):
+    if args.normalize is not None:
+        string = unicodedata.normalize(args.normalize, string)
+
+    if print_header:
+        print("Char.\t  Code   Hex\tUTF-8           \tCat.\tName")
+
+    for c in string:
+        cat = unicodedata.category(c)
+
+        if cat.startswith("M"):
+            d = "◌" + c
+        elif c.isprintable() and cat != "Cc":
+            d = c
+        else:
+            d = repr(c)[1:-1]
+
+        if cat != "Cs":
+            by = c.encode("UTF-8")
+            defaultname = ""
+        else:
+            by = c.encode("UTF-8", "surrogateescape")
+            defaultname = f"(INVALID BYTE 0x{by[0]:02X})"
+
+        by = "".join(f"\\x{b:02x}" for b in by)
+        defaultname = MISSING_UNICODE_NAMES.get(ord(c), defaultname)
+        name = unicodedata.name(c, defaultname)
+        print(f"{d}\t{ord(c):6d} {ord(c):5X}\t{by:16s}\t{cat}\t{name}")
+
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Decode and print the description of each unicode character in a string")
+    parser.add_argument("string", nargs="?",
+                        help="String to decode. Defaults to reading stdin.")
+    parser.add_argument("--encoding", "-e", metavar="encoding", default="UTF-8",
+                        help="Encoding to use to decode the string (defaults to UTF-8).")
+    parser.add_argument("--encoding-error", metavar="handling", default="surrogateescape",
+                        choices=["strict", "ignore", "replace", "surrogateescape"],
+                        help="How to handle errors while unicode encoding and decoding (defaults to surrogateescape).")
+    parser.add_argument("--strict", action="store_const", const="strict",
+                        help="Alias for --encoding-error=strict.")
+    parser.add_argument("--ignore", action="store_const", const="ignore",
+                        help="Alias for --encoding-error=ignore.")
+    parser.add_argument("--normalize", metavar="FORM", type=str.upper,
+                        choices=["NFC", "NFD", "NFKC", "NFKD"],
+                        help="Normalize the data before decoding using the given form.")
+    parser.add_argument("--nfc", action="store_const", const="NFC",
+                        dest="normalize", help="Alias for --normalize=NFC.")
+    parser.add_argument("--nfd", action="store_const", const="NFD",
+                        dest="normalize", help="Alias for --normalize=NFD.")
+    parser.add_argument("--nfkc", action="store_const", const="NFKC",
+                        dest="normalize", help="Alias for --normalize=NFKC.")
+    parser.add_argument("--nfkd", action="store_const", const="NFKD",
+                        dest="normalize", help="Alias for --normalize=NFKD.")
+
+    args = parser.parse_args()
+
+    if args.string:
+        string = args.string
+
+        # Let's not waste time reduing the default
+        if not (args.encoding == "UTF-8" and args.encoding_error == "surrogateescape"):
+            string = string.encode("UTF-8", "surrogateescape")
+            string = string.decode(args.encoding, args.encoding_error)
+
+        print_string(args, string)
+        return
+
+    decoder = codecs.getincrementaldecoder(args.encoding)(args.encoding_error)
+    firstline = True
+    while True:
+        data = sys.stdin.buffer.read1()
+        if not data:
+            break
+
+        string = decoder.decode(data)
+        print_string(args, string, print_header=firstline)
+        firstline = False
+
+    # Make sure to always call decode with final=True, even if data is empty to
+    # produce an error if there were trailing bytes.
+    string = decoder.decode(b"", final=True)
+    if string:
+        print_string(args, string, print_header=False)
+
+
+
+if __name__ == "__main__":
+    sys.exit(main())
