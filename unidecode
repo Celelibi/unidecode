@@ -9,6 +9,8 @@ characters are in a combined form or not.
 
 import argparse
 import codecs
+import ctypes
+import locale
 import sys
 import unicodedata
 import warnings
@@ -85,6 +87,13 @@ MISSING_UNICODE_NAMES = {
 
 
 
+libc = ctypes.CDLL(None)
+wcswidth = libc.wcswidth
+wcswidth.argtypes = [ctypes.c_wchar_p, ctypes.c_int]
+wcswidth.restype = ctypes.c_int
+
+
+
 def print_string(args, string, print_header=True):
     """Take a string as input and print the table of information about its
     characters. One row per character."""
@@ -93,7 +102,7 @@ def print_string(args, string, print_header=True):
         string = unicodedata.normalize(args.normalize, string)
 
     if print_header:
-        print("Char.     \t   Dec.   Hex. UTF-8            Cat. Name")
+        print("Character     Dec.   Hex. UTF-8            Cat. Name")
 
     for c in string:
         cat = unicodedata.category(c)
@@ -115,13 +124,18 @@ def print_string(args, string, print_header=True):
         by = "".join(f"\\x{b:02x}" for b in by)
         defaultname = MISSING_UNICODE_NAMES.get(ord(c), defaultname)
         name = unicodedata.name(c, defaultname)
-        print(f"{d:10s}\t{ord(c):7d} {ord(c):6X} {by:16s} {cat:4s} {name}")
+
+        dlen = wcswidth(d, len(d))
+        d += " " * (10 - dlen)
+        print(f"{d} {ord(c):7d} {ord(c):6X} {by:16s} {cat:4s} {name}")
 
 
 
 def main():
     """Main function. Parses the arguments, read stdin if needed and calls
     print_string."""
+
+    locale.setlocale(locale.LC_ALL, "")
 
     parser = argparse.ArgumentParser(description="Decode and print the description "
                                      "of each unicode character in a string")
