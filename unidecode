@@ -93,7 +93,7 @@ def print_string(args, string, print_header=True):
         string = unicodedata.normalize(args.normalize, string)
 
     if print_header:
-        print("Char.\t  Code   Hex\tUTF-8           \tCat.\tName")
+        print("Char.     \t   Dec.   Hex. UTF-8            Cat. Name")
 
     for c in string:
         cat = unicodedata.category(c)
@@ -115,7 +115,7 @@ def print_string(args, string, print_header=True):
         by = "".join(f"\\x{b:02x}" for b in by)
         defaultname = MISSING_UNICODE_NAMES.get(ord(c), defaultname)
         name = unicodedata.name(c, defaultname)
-        print(f"{d}\t{ord(c):6d} {ord(c):5X}\t{by:16s}\t{cat}\t{name}")
+        print(f"{d:10s}\t{ord(c):7d} {ord(c):6X} {by:16s} {cat:4s} {name}")
 
 
 
