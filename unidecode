@@ -11,6 +11,7 @@ import argparse
 import codecs
 import sys
 import unicodedata
+import warnings
 
 
 
@@ -161,10 +162,24 @@ def main():
         print_string(args, string)
         return
 
+    # Several layers of fallbacks for reading stdin as bytes
+    if sys.stdin is None:
+        raise RuntimeError("No stdin to read from")
+
+    if not hasattr(sys.stdin, "buffer"):
+        warnings.warn("No byte interface for stdin")
+        read = lambda: sys.stdin.read(4096).encode()
+
+    elif not hasattr(sys.stdin.buffer, "read1"):
+        read = lambda: sys.stdin.buffer.read(4096)
+
+    else:
+        read = sys.stdin.buffer.read1
+
     decoder = codecs.getincrementaldecoder(args.encoding)(args.encoding_error)
     firstline = True
     while True:
-        data = sys.stdin.buffer.read1()
+        data = read()
         if not data:
             break
 
