@@ -88,50 +88,70 @@ MISSING_UNICODE_NAMES = {
 
 
 
-def load_wcswidth():
+def simple_wcwidth(c):
+    """Simplistic implementation of wcwidth. It only uses the category code and
+    the unicode data about East Asian Width."""
+
+    cat = unicodedata.category(c)
+    if cat == "Cc":
+        return -1
+    if cat.startswith("M"):
+        return 0
+    if unicodedata.east_asian_width(c) in ("W", "F"):
+        return 2
+    return 1
+
+
+
+def simple_wcswidth(s):
+    """Simplistic implementation of wcswidth to return the estimated
+    terminal width of a unicode string."""
+    return sum(simple_wcwidth(c) for c in s)
+
+
+
+def _libc_wcswidth(s, l):
+    raise NotImplementedError("libc version of wcswidth not found")
+
+
+
+def libc_wcswidth(s):
+    """Wrapper that calls _libc_wcswidth with the second argument, the length
+    of the string."""
+    return _libc_wcswidth(s, len(s))
+
+
+
+# This assignment can be changed to libc_wcswidth if init_wcswidth succeed and
+# _libc_wcswidth gets overridden.
+wcswidth = simple_wcswidth
+
+
+
+def init_wcswidth():
     """Load the libc and returns the function wcswidth found there if any.
     Returns None otherwise."""
 
+    global _libc_wcswidth, wcswidth
     path = ctypes.util.find_library("c")
 
     try:
         libc = ctypes.CDLL(path)
     except OSError:
-        return None
+        warnings.warn("Can't find the libc, using simple wcswidth implementation")
+        return
 
     try:
         fun = libc.wcswidth
     except AttributeError:
-        return None
+        warnings.warn("Can't find function wcswidth in system libraries, using simple implementation")
+        return
 
     fun.argtypes = [ctypes.c_wchar_p, ctypes.c_int]
     fun.restype = ctypes.c_int
-    return fun
+    _libc_wcswidth = fun
 
-
-
-libc_wcswidth = load_wcswidth()
-
-if libc_wcswidth is not None:
-    def wcswidth(s):
-        """Calls the libc function wcswidth."""
-        return libc_wcswidth(s, len(s))
-else:
-    warnings.warn("Can't find function wcswidth in system libraries, using mock-up default")
-    def _wcwidth(c):
-        cat = unicodedata.category(c)
-        if cat == "Cc":
-            return -1
-        if cat.startswith("M"):
-            return 0
-        if unicodedata.east_asian_width(c) in ("W", "F"):
-            return 2
-        return 1
-
-    def wcswidth(s):
-        """Simplistic implementation of wcswidth to return the estimated
-        terminal width of a unicode string."""
-        return sum(_wcwidth(c) for c in s)
+    wcswidth = libc_wcswidth
 
 
 
@@ -205,6 +225,8 @@ def main():
                         dest="normalize", help="Alias for --normalize=NFKD.")
 
     args = parser.parse_args()
+
+    init_wcswidth()
 
     if args.string:
         string = args.string
