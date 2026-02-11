@@ -192,6 +192,25 @@ def print_string(args, string, print_header=True):
 
 
 
+def _read_stdin_char_encode():
+    """Read 4096 characters from sys.stdin and encodes them in bytes."""
+    return sys.stdin.read(4096).encode()
+
+
+
+def _read_stdin_bytes():
+    """Read 4096 bytes from sys.stdin.buffer."""
+    return sys.stdin.buffer.read(4096)
+
+
+
+def _read_stdin_bytes_once():
+    """Reads some bytes from sys.stdin.buffer using method read1 to make only
+    one system call."""
+    return sys.stdin.buffer.read1()
+
+
+
 def main():
     """Main function. Parses the arguments, read stdin if needed and calls
     print_string."""
@@ -245,13 +264,11 @@ def main():
 
     if not hasattr(sys.stdin, "buffer"):
         warnings.warn("No byte interface for stdin")
-        read = lambda: sys.stdin.read(4096).encode()
-
+        read = _read_stdin_char_encode
     elif not hasattr(sys.stdin.buffer, "read1"):
-        read = lambda: sys.stdin.buffer.read(4096)
-
+        read = _read_stdin_bytes
     else:
-        read = sys.stdin.buffer.read1
+        read = _read_stdin_bytes_once
 
     decoder = codecs.getincrementaldecoder(args.encoding)(args.encoding_error)
     firstline = True
