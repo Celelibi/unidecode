@@ -1,6 +1,8 @@
 #!/bin/env python3
 
 import argparse
+import collections
+import importlib
 import os
 import re
 import subprocess
@@ -9,6 +11,21 @@ import sys
 
 
 SELFPATH = os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
+
+def load_unidecode():
+    global unidecode
+
+    path = os.path.join(SELFPATH, "unidecode")
+    loader = importlib.machinery.SourceFileLoader("unidecode", path)
+    spec = importlib.util.spec_from_file_location("unidecode", loader=loader)
+    if spec is None:
+        raise ModuleNotFoundError(f"No module named 'unidecode'")
+
+    unidecode = importlib.util.module_from_spec(spec)
+    sys.modules["unidecode"] = unidecode
+    spec.loader.exec_module(unidecode)
 
 
 
@@ -28,14 +45,16 @@ def load_data(path):
 
 
 
-def match_names(names, strings, regexes, out):
+def match_names(names, strings, regexes):
     strings = [s.upper() for s in strings]
     regexes = [re.compile(r, re.IGNORECASE) for r in regexes]
 
-    for name, cp in names.items():
+    args = collections.namedtuple("Args", "normalize")(None)
+    first = True
+    for name, cp in names:
         if any(s in name for s in strings) or any(r.search(name) for r in regexes):
-            out.write(chr(cp).encode())
-            out.flush()
+            unidecode.print_string(args, chr(cp), print_header=first)
+            first = False
 
 
 
@@ -72,11 +91,9 @@ def main():
         args.unicode_data = os.path.join(SELFPATH, "UnicodeData.txt")
 
 
+    load_unidecode()
     names = load_data(args.unicode_data)
-    proc = subprocess.Popen([os.path.join(SELFPATH, "unidecode")], stdin=subprocess.PIPE)
-    match_names(names, args.string, args.regex, proc.stdin)
-    proc.stdin.close()
-    proc.wait()
+    match_names(names, args.string, args.regex)
 
 
 
