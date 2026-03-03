@@ -30,7 +30,7 @@ def load_unidecode():
 
 
 def load_data(path):
-    retval = {}
+    retval = []
     with open(path) as fp:
         for line in fp:
             line = line.split(";")
@@ -39,9 +39,7 @@ def load_data(path):
             if line[1] == "<control>":
                 name = line[10]
 
-            retval[name] = codepoint
-
-    return retval
+            yield (name, codepoint)
 
 
 
