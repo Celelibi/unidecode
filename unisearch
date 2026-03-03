@@ -1,0 +1,84 @@
+#!/bin/env python3
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+
+
+
+SELFPATH = os.path.dirname(os.path.realpath(sys.argv[0]))
+
+
+
+def load_data(path):
+    retval = {}
+    with open(path) as fp:
+        for line in fp:
+            line = line.split(";")
+            codepoint = int(line[0], 16)
+            name = line[1]
+            if line[1] == "<control>":
+                name = line[10]
+
+            retval[name] = codepoint
+
+    return retval
+
+
+
+def match_names(names, strings, regexes, out):
+    strings = [s.upper() for s in strings]
+    regexes = [re.compile(r, re.IGNORECASE) for r in regexes]
+
+    for name, cp in names.items():
+        if any(s in name for s in strings) or any(r.search(name) for r in regexes):
+            out.write(chr(cp).encode())
+            out.flush()
+
+
+
+def main():
+    """Main function. Parses the arguments, search the UnicodeData.txt file for
+    code points matching the description."""
+
+    parser = argparse.ArgumentParser(description="Search unicode code point "
+                                     "matching the description and print its "
+                                     "informations.")
+    parser.add_argument("stringarg", nargs="?",
+                        help="Substring or pattern to look for.")
+    parser.add_argument("--unicode-data", "-u", metavar="file",
+                        help="Path to UnicodeData.txt to parse and search.")
+    parser.add_argument("--regex", "-r", metavar="REGEX", action="append",
+                        default=[],
+                        help="Search this regular expression. Can be supplied "
+                        "multiple times, finds entries matching any pattern.")
+    parser.add_argument("--string", "-s", metavar="STRING", action="append",
+                        default=[],
+                        help="Search this substring. Can be supplied "
+                        "multiple times, finds entries matching any string.")
+
+    args = parser.parse_args()
+
+    if not args.regex and not args.string and not args.stringarg:
+        print("Must supply at least one search pattern.", file=sys.stderr)
+        return 1
+
+    if args.stringarg is not None:
+        args.string.append(args.stringarg)
+
+    if args.unicode_data is None:
+        args.unicode_data = os.path.join(SELFPATH, "UnicodeData.txt")
+
+
+    names = load_data(args.unicode_data)
+    proc = subprocess.Popen([os.path.join(SELFPATH, "unidecode")], stdin=subprocess.PIPE)
+    match_names(names, args.string, args.regex, proc.stdin)
+    proc.stdin.close()
+    proc.wait()
+
+
+
+if __name__ == "__main__":
+    sys.exit(main())
